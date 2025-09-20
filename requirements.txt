@@ -1,0 +1,40 @@
+streamlit
+pdfplumber
+docx2txt
+rapidfuzz
+scikit-learn
+numpy
+pandas
+SQLAlchemy
+sentence-transformers
+plotly
+
+# Advanced LLM and AI Framework
+langchain
+langchain-community
+langchain-openai
+langchain-google-genai
+langchain-anthropic
+langgraph
+langsmith
+
+# Vector Stores
+chromadb
+faiss-cpu
+
+# Enhanced Text Processing
+spacy
+nltk
+
+# API Framework
+fastapi
+uvicorn
+pydantic
+
+# Additional ML/AI
+openai
+google-generativeai
+anthropic
+
+# Enhanced fuzzy matching
+python-Levenshtein

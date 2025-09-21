@@ -18,10 +18,8 @@ SQLAlchemy==2.0.20
 
 # Advanced LLM and AI Framework (Optional - will fallback gracefully)
 langchain==0.0.300
-langchain-community==0.0.25
 langchain-openai==0.0.8
 langchain-google-genai==0.0.6
-langchain-anthropic==0.0.4
 langgraph==0.0.40
 
 # Vector Stores (Optional)

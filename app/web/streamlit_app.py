@@ -508,37 +508,24 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 def page_landing():
-    """Professional landing page with student application form and admin login"""
+    """Clean landing page with clear login/student sections"""
     st.markdown('<h1 class="main-header">AI Resume Evaluation System</h1>', unsafe_allow_html=True)
     st.markdown('<p class="sub-header">Smart Resume Analysis & Job Matching Platform</p>', unsafe_allow_html=True)
     
-    # Sleek top navigation bar
-    col_nav1, col_nav2, col_nav3 = st.columns([2, 1, 1])
+    # Simple login button at top right
+    col1, col2, col3, col4 = st.columns([3, 1, 1, 1])
+    with col4:
+        if st.button("🔐 Admin Login", type="secondary", use_container_width=True):
+            st.session_state.show_admin_login = True
+            st.rerun()
     
-    with col_nav2:
-        if st.button("Admin", type="secondary", use_container_width=True):
-            if is_authenticated():
-                st.session_state.page = "admin_dashboard"
-                st.rerun()
-            else:
-                st.session_state.show_admin_login = True
-                st.rerun()
-    
-    with col_nav3:
-        if st.button("Dashboard", type="secondary", use_container_width=True):
-            if is_authenticated():
-                st.session_state.page = "analytics"
-                st.rerun()
-            else:
-                st.session_state.show_admin_login = True
-                st.rerun()
-    
-    # Compact admin login form if requested
+    # Show admin login form if requested
     if st.session_state.get('show_admin_login', False) and not is_authenticated():
+        st.markdown("---")
         col1, col2, col3 = st.columns([1, 2, 1])
         with col2:
             st.markdown('<div class="admin-login-section">', unsafe_allow_html=True)
-            st.markdown('<h3 class="section-header">Admin Login</h3>', unsafe_allow_html=True)
+            st.markdown('<h3 class="section-header">🔐 Admin Login</h3>', unsafe_allow_html=True)
             
             login_result = show_login_form()
             if login_result:
@@ -546,20 +533,23 @@ def page_landing():
                 st.session_state.page = "admin_dashboard"
                 st.rerun()
             
-            col_cancel1, col_cancel2 = st.columns([1, 1])
-            with col_cancel1:
-                if st.button("Cancel", type="secondary", use_container_width=True):
-                    st.session_state.show_admin_login = False
-                    st.rerun()
+            if st.button("❌ Cancel", type="secondary", use_container_width=True):
+                st.session_state.show_admin_login = False
+                st.rerun()
             st.markdown('</div>', unsafe_allow_html=True)
-        
         st.markdown("---")
     
-    # Main student application section
-    st.markdown('<div class="student-form-section">', unsafe_allow_html=True)
-    st.markdown('<h2 class="section-header">Student Application Portal</h2>', unsafe_allow_html=True)
-    page_student_application()
-    st.markdown('</div>', unsafe_allow_html=True)
+    # Main student application section - always visible, but cleaner presentation
+    if not st.session_state.get('show_admin_login', False):
+        st.markdown("---")
+        st.markdown('<div class="student-form-section">', unsafe_allow_html=True)
+        st.markdown('<h2 class="section-header">🎓 Student Application Portal</h2>', unsafe_allow_html=True)
+        st.info("📋 Apply for available positions by uploading your resume and get instant AI-powered feedback!")
+        page_student_application()
+        st.markdown('</div>', unsafe_allow_html=True)
+    else:
+        st.markdown("---")
+        st.info("💡 Complete the admin login above or cancel to access the student application portal.")
 
 def page_student_application():
     """Professional student application form with resume upload and analysis"""
@@ -1214,32 +1204,35 @@ def main():
     else:
         # Admin pages - full access after authentication
         with st.sidebar:
-            st.markdown("### 🎯 Admin Navigation")
+            st.markdown("### 🎯 Admin Panel")
             
             # Show logout button
             show_logout_button()
             
+            # Back to Student Portal button
+            if st.button("🎓 Student Portal", use_container_width=True):
+                st.session_state.page = "landing"
+                st.rerun()
+            
+            st.markdown("---")
+            
             # Admin navigation
             nav_options = [
-                "🏠 Landing Page",
                 "📄 Manage Jobs", 
                 "📋 Review Applications",
-                "🎯 Placement Dashboard", 
                 "📊 Analytics Dashboard"
             ]
             
             # Map current page to radio selection
             page_mapping = {
-                "landing": "🏠 Landing Page",
                 "upload_jd": "📄 Manage Jobs",
                 "admin_dashboard": "📋 Review Applications",
-                "placement_dashboard": "🎯 Placement Dashboard",
                 "analytics": "📊 Analytics Dashboard"
             }
             
-            # Get current index
-            current_page = st.session_state.get("page", "landing")
-            current_selection = page_mapping.get(current_page, "🏠 Landing Page")
+            # Get current index - default to Manage Jobs for admin
+            current_page = st.session_state.get("page", "upload_jd")
+            current_selection = page_mapping.get(current_page, "📄 Manage Jobs")
             
             try:
                 default_index = nav_options.index(current_selection)
@@ -1253,14 +1246,10 @@ def main():
             )
             
             # Update session state based on selection
-            if "Landing Page" in selected_page:
-                st.session_state.page = "landing"
-            elif "Manage Jobs" in selected_page:
+            if "Manage Jobs" in selected_page:
                 st.session_state.page = "upload_jd"
             elif "Review Applications" in selected_page:
                 st.session_state.page = "admin_dashboard"
-            elif "Placement Dashboard" in selected_page:
-                st.session_state.page = "placement_dashboard"
             elif "Analytics Dashboard" in selected_page:
                 st.session_state.page = "analytics"
             
@@ -1287,14 +1276,12 @@ def main():
             page_upload_jd()
         elif st.session_state.page == "admin_dashboard":
             page_admin_dashboard()
-        elif st.session_state.page == "placement_dashboard":
-            page_placement_dashboard()
         elif st.session_state.page == "analytics":
             page_dashboard()
         else:
-            # Default fallback
-            st.session_state.page = "landing"
-            page_landing()
+            # Default fallback to manage jobs for admin
+            st.session_state.page = "upload_jd"
+            page_upload_jd()
 
 def page_admin_dashboard():
     """Admin dashboard for reviewing student applications and their analysis"""

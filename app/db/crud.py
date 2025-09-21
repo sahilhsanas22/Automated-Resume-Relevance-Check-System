@@ -82,3 +82,62 @@ def list_evaluations(
         q = q.join(models.Resume).filter(models.Resume.location.ilike(f"%{location}%"))
     q = q.order_by(models.Evaluation.score.desc(), models.Evaluation.created_at.desc())
     return q.all()
+
+
+# Student Applications
+
+def create_student_application(
+    db: Session, 
+    *, 
+    job_id: int, 
+    student_name: str, 
+    email: str, 
+    phone: str = "", 
+    location: str = "", 
+    resume_file_name: str, 
+    resume_text: str, 
+    cover_letter: str = ""
+) -> models.StudentApplication:
+    application = models.StudentApplication(
+        job_id=job_id,
+        student_name=student_name.strip(),
+        email=email.strip().lower(),
+        phone=phone.strip(),
+        location=location.strip(),
+        resume_file_name=resume_file_name,
+        resume_text=resume_text,
+        cover_letter=cover_letter,
+        status="pending"
+    )
+    db.add(application)
+    db.commit()
+    db.refresh(application)
+    return application
+
+
+def list_student_applications(
+    db: Session,
+    *,
+    job_id: Optional[int] = None,
+    status: Optional[str] = None
+) -> List[models.StudentApplication]:
+    q = db.query(models.StudentApplication)
+    if job_id:
+        q = q.filter(models.StudentApplication.job_id == job_id)
+    if status:
+        q = q.filter(models.StudentApplication.status == status)
+    q = q.order_by(models.StudentApplication.created_at.desc())
+    return q.all()
+
+
+def get_student_application(db: Session, application_id: int) -> Optional[models.StudentApplication]:
+    return db.query(models.StudentApplication).filter(models.StudentApplication.id == application_id).first()
+
+
+def update_application_status(db: Session, application_id: int, status: str) -> Optional[models.StudentApplication]:
+    application = get_student_application(db, application_id)
+    if application:
+        application.status = status
+        db.commit()
+        db.refresh(application)
+    return application

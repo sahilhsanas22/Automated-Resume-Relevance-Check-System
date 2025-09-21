@@ -53,6 +53,27 @@ class AdvancedEvaluationResponse(BaseModel):
     extracted_entities: Dict[str, Any]
     text_summary: Dict[str, int]
 
+class StudentApplicationCreate(BaseModel):
+    job_id: int
+    student_name: str
+    email: str
+    phone: Optional[str] = ""
+    location: Optional[str] = ""
+    cover_letter: Optional[str] = ""
+
+class StudentApplicationResponse(BaseModel):
+    id: int
+    job_id: int
+    student_name: str
+    email: str
+    phone: Optional[str]
+    location: Optional[str]
+    resume_file_name: str
+    cover_letter: Optional[str]
+    status: str
+    created_at: str
+    job_title: str
+
 # Initialize FastAPI app
 app = FastAPI(
     title="AI Resume Evaluation Engine API",
@@ -370,6 +391,215 @@ async def get_dashboard_analytics(db: Session = Depends(get_db)):
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Analytics failed: {str(e)}")
+
+@app.post("/student-applications/", response_model=StudentApplicationResponse)
+async def submit_student_application(
+    application: StudentApplicationCreate,
+    file: UploadFile = File(...),
+    db: Session = Depends(get_db)
+):
+    """Submit a student application with resume"""
+    try:
+        # Verify job exists
+        job = crud.get_job(db, application.job_id)
+        if not job:
+            raise HTTPException(status_code=404, detail="Job not found")
+        
+        # Extract resume text
+        content = await file.read()
+        resume_text, ext = extract_text(content, file.filename)
+        
+        # Create application
+        db_application = crud.create_student_application(
+            db=db,
+            job_id=application.job_id,
+            student_name=application.student_name,
+            email=application.email,
+            phone=application.phone,
+            location=application.location,
+            resume_file_name=file.filename,
+            resume_text=resume_text,
+            cover_letter=application.cover_letter
+        )
+        
+        return StudentApplicationResponse(
+            id=db_application.id,
+            job_id=db_application.job_id,
+            student_name=db_application.student_name,
+            email=db_application.email,
+            phone=db_application.phone,
+            location=db_application.location,
+            resume_file_name=db_application.resume_file_name,
+            cover_letter=db_application.cover_letter,
+            status=db_application.status,
+            created_at=db_application.created_at.isoformat(),
+            job_title=job.title
+        )
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Application submission failed: {str(e)}")
+
+@app.get("/student-applications/", response_model=List[StudentApplicationResponse])
+async def list_student_applications(
+    job_id: Optional[int] = None,
+    status: Optional[str] = None,
+    db: Session = Depends(get_db)
+):
+    """List student applications with filters"""
+    applications = crud.list_student_applications(db, job_id=job_id, status=status)
+    
+    return [
+        StudentApplicationResponse(
+            id=app.id,
+            job_id=app.job_id,
+            student_name=app.student_name,
+            email=app.email,
+            phone=app.phone,
+            location=app.location,
+            resume_file_name=app.resume_file_name,
+            cover_letter=app.cover_letter,
+            status=app.status,
+            created_at=app.created_at.isoformat(),
+            job_title=app.job.title
+        )
+        for app in applications
+    ]
+
+@app.put("/student-applications/{application_id}/status")
+async def update_application_status(
+    application_id: int,
+    status: str,
+    db: Session = Depends(get_db)
+):
+    """Update application status"""
+    if status not in ["pending", "reviewed", "accepted", "rejected"]:
+        raise HTTPException(status_code=400, detail="Invalid status")
+    
+    application = crud.update_application_status(db, application_id, status)
+    if not application:
+        raise HTTPException(status_code=404, detail="Application not found")
+    
+    return {"message": f"Application status updated to {status}", "application_id": application_id}
+
+@app.get("/search/resumes/advanced")
+async def advanced_resume_search(
+    job_role: Optional[str] = None,
+    min_score: Optional[float] = None,
+    max_score: Optional[float] = None,
+    location: Optional[str] = None,
+    verdict: Optional[str] = None,
+    skills: Optional[str] = None,
+    limit: int = 10,
+    db: Session = Depends(get_db)
+):
+    """Advanced search for resumes with multiple filters"""
+    try:
+        # Get all evaluations from database with joins
+        evaluations = db.query(models.Evaluation).join(models.Job).join(models.Resume).all()
+        filtered_results = []
+        
+        for evaluation in evaluations:
+            # Apply filters
+            if min_score is not None and evaluation.score < min_score:
+                continue
+            if max_score is not None and evaluation.score > max_score:
+                continue
+            if verdict and evaluation.verdict.lower() != verdict.lower():
+                continue
+            
+            # Get resume text for additional filtering
+            resume_text = evaluation.resume.text.lower() if evaluation.resume.text else ""
+            
+            # Filter by location
+            if location and location.lower() not in (evaluation.resume.location or "").lower():
+                continue
+            
+            # Filter by skills
+            if skills:
+                skill_list = [s.strip().lower() for s in skills.split(',')]
+                if not any(skill in resume_text for skill in skill_list):
+                    continue
+            
+            # Filter by job role if provided
+            if job_role:
+                job_keywords = job_role.lower().split()
+                if not any(keyword in resume_text for keyword in job_keywords):
+                    continue
+            
+            filtered_results.append({
+                "id": evaluation.id,
+                "job_id": evaluation.job_id,
+                "job_title": evaluation.job.title,
+                "file_name": evaluation.resume.file_name,
+                "student_name": evaluation.resume.student_name,
+                "score": evaluation.score,
+                "verdict": evaluation.verdict,
+                "suggestions": evaluation.suggestions,
+                "resume_text": evaluation.resume.text[:500] + "..." if len(evaluation.resume.text) > 500 else evaluation.resume.text,
+                "location": evaluation.resume.location,
+                "created_at": evaluation.created_at.isoformat()
+            })
+        
+        # Sort by score (descending)
+        filtered_results.sort(key=lambda x: x["score"], reverse=True)
+        
+        return {
+            "filters_applied": {
+                "job_role": job_role,
+                "min_score": min_score,
+                "max_score": max_score,
+                "location": location,
+                "verdict": verdict,
+                "skills": skills
+            },
+            "total_results": len(filtered_results),
+            "results": filtered_results[:limit]
+        }
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Advanced search failed: {str(e)}")
+
+@app.get("/shortlisted-resumes")
+async def get_shortlisted_resumes(
+    job_id: Optional[int] = None,
+    min_score: float = 7.0,
+    db: Session = Depends(get_db)
+):
+    """Get shortlisted resumes (high-scoring candidates)"""
+    try:
+        query = db.query(models.Evaluation).join(models.Job).join(models.Resume)
+        
+        if job_id:
+            query = query.filter(models.Evaluation.job_id == job_id)
+        
+        evaluations = query.filter(models.Evaluation.score >= min_score).all()
+        
+        shortlisted = []
+        for evaluation in evaluations:
+            shortlisted.append({
+                "id": evaluation.id,
+                "job_id": evaluation.job_id,
+                "job_title": evaluation.job.title,
+                "file_name": evaluation.resume.file_name,
+                "student_name": evaluation.resume.student_name,
+                "score": evaluation.score,
+                "verdict": evaluation.verdict,
+                "suggestions": evaluation.suggestions,
+                "location": evaluation.resume.location,
+                "created_at": evaluation.created_at.isoformat()
+            })
+        
+        # Sort by score (descending)
+        shortlisted.sort(key=lambda x: x["score"], reverse=True)
+        
+        return {
+            "shortlist_criteria": {
+                "min_score": min_score,
+                "job_id": job_id
+            },
+            "total_shortlisted": len(shortlisted),
+            "shortlisted_candidates": shortlisted
+        }
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Failed to get shortlisted resumes: {str(e)}")
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000)

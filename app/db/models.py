@@ -18,6 +18,7 @@ class Job(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     evaluations = relationship("Evaluation", back_populates="job", cascade="all, delete-orphan")
+    applications = relationship("StudentApplication", back_populates="job", cascade="all, delete-orphan")
 
 
 class Resume(Base):
@@ -31,6 +32,25 @@ class Resume(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
 
     evaluations = relationship("Evaluation", back_populates="resume", cascade="all, delete-orphan")
+
+
+class StudentApplication(Base):
+    __tablename__ = "student_applications"
+    
+    id = Column(Integer, primary_key=True, index=True)
+    job_id = Column(Integer, ForeignKey("jobs.id"), nullable=False)
+    student_name = Column(String(255), nullable=False)
+    email = Column(String(255), nullable=False)
+    phone = Column(String(50))
+    location = Column(String(255))
+    resume_file_name = Column(String(512))
+    resume_text = Column(Text, nullable=False)
+    cover_letter = Column(Text)
+    status = Column(String(50), default="pending")  # pending, reviewed, accepted, rejected
+    evaluation_id = Column(Integer, ForeignKey("evaluations.id"), nullable=True)  # Link to evaluation
+    created_at = Column(DateTime, default=datetime.utcnow)
+    
+    job = relationship("Job", back_populates="applications")
 
 
 class Evaluation(Base):

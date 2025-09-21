@@ -15,6 +15,7 @@ from app.services.evaluator import evaluate_resume_against_job
 from app.services.llm_evaluator import llm_evaluator
 from app.nlp.advanced_processor import text_processor
 from app.config import APP_NAME
+from app.auth import show_login_form, is_authenticated, show_logout_button, require_auth
 
 import streamlit as st
 import pandas as pd
@@ -26,101 +27,599 @@ import json
 # Ensure models are imported so tables are created
 _ = models
 
-# Custom CSS for beautiful UI
+# Beautiful Dark Theme UI
 st.markdown("""
 <style>
+    /* Import Google Fonts */
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    
+    /* Global Dark Theme */
+    .stApp {
+        background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+        color: white;
+        font-family: 'Inter', sans-serif;
+    }
+    
+    /* Main content area with dark background */
+    .main .block-container {
+        background: rgba(30, 30, 46, 0.95);
+        border-radius: 15px;
+        box-shadow: 0 20px 40px rgba(0,0,0,0.3);
+        padding: 2rem;
+        margin: 1rem;
+        max-width: 1200px;
+        border: 1px solid rgba(102, 126, 234, 0.2);
+        backdrop-filter: blur(10px);
+    }
+    
+    /* Headers with white text */
     .main-header {
-        font-size: 3rem;
+        font-size: 2.8rem;
         font-weight: 700;
-        color: #1f77b4;
+        color: white;
+        text-align: center;
+        margin-bottom: 0.5rem;
+        font-family: 'Inter', sans-serif;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+        text-shadow: 0 0 30px rgba(102, 126, 234, 0.5);
+    }
+    
+    .sub-header {
+        font-size: 1.1rem;
+        color: #b8c5d6;
         text-align: center;
         margin-bottom: 2rem;
-        text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
+        font-weight: 400;
+        font-family: 'Inter', sans-serif;
     }
+    
     .section-header {
-        font-size: 1.8rem;
+        font-size: 1.4rem;
         font-weight: 600;
-        color: #2c3e50;
+        color: white;
         margin: 1.5rem 0 1rem 0;
-        border-bottom: 3px solid #3498db;
         padding-bottom: 0.5rem;
+        border-bottom: 2px solid #667eea;
+        font-family: 'Inter', sans-serif;
     }
-    .metric-container {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-        padding: 1rem;
+    
+    /* Dark card sections */
+    .admin-login-section {
+        background: rgba(45, 45, 65, 0.8);
+        padding: 2rem;
+        border-radius: 12px;
+        border: 1px solid rgba(102, 126, 234, 0.3);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+        margin: 1rem 0;
+        backdrop-filter: blur(10px);
+    }
+    
+    .student-form-section {
+        background: rgba(45, 45, 65, 0.8);
+        padding: 2rem;
+        border-radius: 12px;
+        border: 1px solid rgba(102, 126, 234, 0.3);
+        box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+        margin: 1rem 0;
+        backdrop-filter: blur(10px);
+    }
+    
+    /* Dark form inputs */
+    .stTextInput > div > div > input {
+        background-color: rgba(60, 60, 80, 0.8) !important;
+        border: 2px solid rgba(102, 126, 234, 0.3) !important;
+        border-radius: 8px !important;
+        padding: 0.75rem !important;
+        font-family: 'Inter', sans-serif !important;
+        color: white !important;
+        transition: all 0.3s ease !important;
+    }
+    
+    .stTextInput > div > div > input:focus {
+        border-color: #667eea !important;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2) !important;
+        background-color: rgba(70, 70, 90, 0.9) !important;
+    }
+    
+    .stTextArea > div > div > textarea {
+        background-color: rgba(60, 60, 80, 0.8) !important;
+        border: 2px solid rgba(102, 126, 234, 0.3) !important;
+        border-radius: 8px !important;
+        padding: 0.75rem !important;
+        font-family: 'Inter', sans-serif !important;
+        color: white !important;
+        transition: all 0.3s ease !important;
+    }
+    
+    .stTextArea > div > div > textarea:focus {
+        border-color: #667eea !important;
+        box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.2) !important;
+        background-color: rgba(70, 70, 90, 0.9) !important;
+    }
+    
+    .stSelectbox > div > div {
+        background-color: rgba(60, 60, 80, 0.8) !important;
+        border: 2px solid rgba(102, 126, 234, 0.3) !important;
+        border-radius: 8px !important;
+        color: white !important;
+    }
+    
+    /* Beautiful gradient buttons */
+    .stButton > button {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+        color: white !important;
+        border: none !important;
+        border-radius: 8px !important;
+        padding: 0.75rem 1.5rem !important;
+        font-weight: 500 !important;
+        font-family: 'Inter', sans-serif !important;
+        transition: all 0.3s ease !important;
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4) !important;
+    }
+    
+    .stButton > button:hover {
+        transform: translateY(-2px) !important;
+        box-shadow: 0 8px 25px rgba(102, 126, 234, 0.6) !important;
+    }
+    
+    /* Secondary buttons */
+    .stButton > button[kind="secondary"] {
+        background: transparent !important;
+        color: #667eea !important;
+        border: 2px solid #667eea !important;
+        box-shadow: none !important;
+    }
+    
+    .stButton > button[kind="secondary"]:hover {
+        background: #667eea !important;
+        color: white !important;
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4) !important;
+    }
+    
+    /* Dark sidebar with gradient */
+    .css-1d391kg {
+        background: linear-gradient(180deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%) !important;
+    }
+    
+    .css-1d391kg .css-1v0mbdj {
+        color: white !important;
+    }
+    
+    /* Dark metric cards */
+    .metric-card {
+        background: rgba(45, 45, 65, 0.8);
+        padding: 1.5rem;
         border-radius: 10px;
+        box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+        border-left: 4px solid #667eea;
+        margin: 1rem 0;
         color: white;
-        text-align: center;
-        margin: 0.5rem 0;
     }
-    .score-high {
-        background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%);
-        padding: 1rem;
-        border-radius: 10px;
-        color: white;
-        text-align: center;
-        font-weight: bold;
-    }
-    .score-medium {
-        background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
-        padding: 1rem;
-        border-radius: 10px;
-        color: white;
-        text-align: center;
-        font-weight: bold;
-    }
-    .score-low {
-        background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
-        padding: 1rem;
-        border-radius: 10px;
-        color: white;
-        text-align: center;
-        font-weight: bold;
-    }
+    
+    /* Dark alert boxes */
     .success-box {
-        background: linear-gradient(135deg, #84fab0 0%, #8fd3f4 100%);
+        background: linear-gradient(135deg, rgba(40, 167, 69, 0.2) 0%, rgba(32, 201, 151, 0.2) 100%);
+        color: #4ade80;
         padding: 1rem;
-        border-radius: 10px;
-        border-left: 5px solid #27ae60;
+        border-radius: 8px;
+        border-left: 4px solid #22c55e;
         margin: 1rem 0;
+        font-family: 'Inter', sans-serif;
+        backdrop-filter: blur(10px);
     }
+    
+    .warning-box {
+        background: linear-gradient(135deg, rgba(255, 193, 7, 0.2) 0%, rgba(255, 152, 0, 0.2) 100%);
+        color: #fbbf24;
+        padding: 1rem;
+        border-radius: 8px;
+        border-left: 4px solid #f59e0b;
+        margin: 1rem 0;
+        font-family: 'Inter', sans-serif;
+        backdrop-filter: blur(10px);
+    }
+    
     .info-box {
-        background: linear-gradient(135deg, #a8edea 0%, #fed6e3 100%);
+        background: linear-gradient(135deg, rgba(23, 162, 184, 0.2) 0%, rgba(102, 126, 234, 0.2) 100%);
+        color: #60a5fa;
+        padding: 1rem;
+        border-radius: 8px;
+        border-left: 4px solid #3b82f6;
+        margin: 1rem 0;
+        font-family: 'Inter', sans-serif;
+        backdrop-filter: blur(10px);
+    }
+    
+    /* Glowing score indicators */
+    .score-high {
+        background: linear-gradient(135deg, #22c55e 0%, #16a34a 100%);
+        color: white;
         padding: 1rem;
         border-radius: 10px;
-        border-left: 5px solid #3498db;
-        margin: 1rem 0;
+        text-align: center;
+        font-weight: 600;
+        box-shadow: 0 4px 20px rgba(34, 197, 94, 0.4);
+        border: 1px solid rgba(34, 197, 94, 0.3);
     }
-    .upload-zone {
-        border: 2px dashed #3498db;
+    
+    .score-medium {
+        background: linear-gradient(135deg, #f59e0b 0%, #d97706 100%);
+        color: white;
+        padding: 1rem;
         border-radius: 10px;
+        text-align: center;
+        font-weight: 600;
+        box-shadow: 0 4px 20px rgba(245, 158, 11, 0.4);
+        border: 1px solid rgba(245, 158, 11, 0.3);
+    }
+    
+    .score-low {
+        background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+        color: white;
+        padding: 1rem;
+        border-radius: 10px;
+        text-align: center;
+        font-weight: 600;
+        box-shadow: 0 4px 20px rgba(239, 68, 68, 0.4);
+        border: 1px solid rgba(239, 68, 68, 0.3);
+    }
+    
+    /* Dark expanders */
+    .streamlit-expanderHeader {
+        background: rgba(60, 60, 80, 0.6) !important;
+        border-radius: 8px !important;
+        border: 1px solid rgba(102, 126, 234, 0.3) !important;
+        color: white !important;
+    }
+    
+    /* Hide Streamlit elements */
+    #MainMenu {visibility: hidden;}
+    footer {visibility: hidden;}
+    .stDeployButton {display: none;}
+    header {visibility: hidden;}
+    
+    /* All text white */
+    .stMarkdown p, .stMarkdown li, .stMarkdown span, .stMarkdown div {
+        color: white !important;
+        font-family: 'Inter', sans-serif !important;
+    }
+    
+    /* Form labels white */
+    .stTextInput label, .stTextArea label, .stSelectbox label {
+        color: white !important;
+        font-weight: 500 !important;
+        font-family: 'Inter', sans-serif !important;
+    }
+    
+    /* Dark tabs */
+    .stTabs [data-baseweb="tab-list"] {
+        gap: 8px;
+    }
+    
+    .stTabs [data-baseweb="tab"] {
+        height: 50px;
+        background: rgba(60, 60, 80, 0.6);
+        border-radius: 8px;
+        color: white;
+        border: 2px solid rgba(102, 126, 234, 0.3);
+    }
+    
+    .stTabs [aria-selected="true"] {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        color: white;
+        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+    }
+    
+    /* Dark metrics */
+    .stMetric {
+        background: rgba(45, 45, 65, 0.8);
+        padding: 1rem;
+        border-radius: 10px;
+        box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+        border-left: 4px solid #667eea;
+        color: white;
+    }
+    
+    .stMetric > div {
+        color: white !important;
+        font-family: 'Inter', sans-serif !important;
+    }
+    
+    /* Dark alert styling */
+    .stAlert > div {
+        background: rgba(45, 45, 65, 0.8);
+        border-radius: 8px;
+        border: none;
+        box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+        font-family: 'Inter', sans-serif;
+        color: white;
+        backdrop-filter: blur(10px);
+    }
+    
+    /* Success alerts */
+    .stAlert[data-testid="success"] > div {
+        background: linear-gradient(135deg, rgba(40, 167, 69, 0.2) 0%, rgba(32, 201, 151, 0.2) 100%);
+        border-left: 4px solid #22c55e;
+        color: #4ade80;
+    }
+    
+    /* Error alerts */
+    .stAlert[data-testid="error"] > div {
+        background: linear-gradient(135deg, rgba(239, 68, 68, 0.2) 0%, rgba(220, 38, 38, 0.2) 100%);
+        border-left: 4px solid #ef4444;
+        color: #fb7185;
+    }
+    
+    /* Warning alerts */
+    .stAlert[data-testid="warning"] > div {
+        background: linear-gradient(135deg, rgba(245, 158, 11, 0.2) 0%, rgba(217, 119, 6, 0.2) 100%);
+        border-left: 4px solid #f59e0b;
+        color: #fbbf24;
+    }
+    
+    /* Info alerts */
+    .stAlert[data-testid="info"] > div {
+        background: linear-gradient(135deg, rgba(59, 130, 246, 0.2) 0%, rgba(102, 126, 234, 0.2) 100%);
+        border-left: 4px solid #3b82f6;
+        color: #60a5fa;
+    }
+    
+    /* Dark file uploader */
+    .stFileUploader > div {
+        background: rgba(60, 60, 80, 0.6);
+        border: 2px dashed #667eea;
+        border-radius: 8px;
         padding: 2rem;
         text-align: center;
-        background: #f8f9fa;
-        margin: 1rem 0;
-    }
-    .stSelectbox > div > div {
-        background-color: #f8f9fa;
-        border: 2px solid #e9ecef;
-        border-radius: 8px;
-    }
-    .stButton > button {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
         color: white;
-        border: none;
-        border-radius: 8px;
-        padding: 0.5rem 1rem;
-        font-weight: 600;
-        transition: all 0.3s;
     }
-    .stButton > button:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+    
+    /* Dark progress bars */
+    .stProgress > div > div {
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+    }
+    
+    /* Sidebar text white */
+    .css-1d391kg .element-container {
+        color: white !important;
+    }
+    
+    .css-1d391kg .stRadio > label {
+        color: white !important;
+        font-weight: 500 !important;
+    }
+    
+    .css-1d391kg .stMarkdown {
+        color: white !important;
+    }
+    
+    /* Ensure all text is white in main content */
+    .stApp .main .block-container h1,
+    .stApp .main .block-container h2,
+    .stApp .main .block-container h3,
+    .stApp .main .block-container h4,
+    .stApp .main .block-container h5,
+    .stApp .main .block-container h6,
+    .stApp .main .block-container p,
+    .stApp .main .block-container span,
+    .stApp .main .block-container div {
+        color: white !important;
+        font-family: 'Inter', sans-serif !important;
+    }
+    
+    /* Dark DataFrames */
+    .stDataFrame {
+        background: rgba(45, 45, 65, 0.8);
+        border-radius: 8px;
+        box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+        overflow: hidden;
+        color: white;
+    }
+    
+    /* Dark charts */
+    .stPlotlyChart {
+        background: rgba(45, 45, 65, 0.8);
+        border-radius: 8px;
+        box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+        padding: 1rem;
+    }
+    
+    /* Selectbox options dark theme */
+    .stSelectbox div[data-baseweb="select"] > div {
+        background-color: rgba(60, 60, 80, 0.8) !important;
+        color: white !important;
+    }
+    
+    /* Radio buttons dark theme */
+    .stRadio > div {
+        color: white !important;
+    }
+    
+    /* Checkbox dark theme */
+    .stCheckbox > label {
+        color: white !important;
     }
 </style>
 """, unsafe_allow_html=True)
 
+def page_landing():
+    """Professional landing page with student application form and admin login"""
+    st.markdown('<h1 class="main-header">AI Resume Evaluation System</h1>', unsafe_allow_html=True)
+    st.markdown('<p class="sub-header">Smart Resume Analysis & Job Matching Platform</p>', unsafe_allow_html=True)
+    
+    # Top admin access bar
+    col_admin1, col_admin2 = st.columns([3, 1])
+    with col_admin2:
+        if not is_authenticated():
+            if st.button("Admin Login", type="secondary", use_container_width=True):
+                st.session_state.show_admin_login = True
+        else:
+            if st.button("Go to Admin Dashboard", type="primary", use_container_width=True):
+                st.session_state.page = "admin_dashboard"
+                st.rerun()
+    
+    # Show admin login form if requested
+    if st.session_state.get('show_admin_login', False) and not is_authenticated():
+        st.markdown('<div class="admin-login-section">', unsafe_allow_html=True)
+        st.markdown('<h3 class="section-header">Administrator Login</h3>', unsafe_allow_html=True)
+        
+        login_result = show_login_form()
+        if login_result:
+            st.session_state.show_admin_login = False
+            st.session_state.page = "admin_dashboard"
+            st.rerun()
+        
+        col_cancel1, col_cancel2 = st.columns([1, 1])
+        with col_cancel2:
+            if st.button("Cancel", type="secondary"):
+                st.session_state.show_admin_login = False
+                st.rerun()
+        st.markdown('</div>', unsafe_allow_html=True)
+        st.markdown("---")
+    
+    # Main student application section
+    st.markdown('<div class="student-form-section">', unsafe_allow_html=True)
+    st.markdown('<h2 class="section-header">Student Application Portal</h2>', unsafe_allow_html=True)
+    page_student_application()
+    st.markdown('</div>', unsafe_allow_html=True)
+
+def page_student_application():
+    """Professional student application form with resume upload and analysis"""
+    # Get available jobs
+    with SessionLocal() as db:
+        jobs = crud.list_jobs(db)
+    
+    if not jobs:
+        st.warning("No job openings available at the moment. Please check back later.")
+        return
+    
+    # Job selection
+    st.markdown("### Available Positions")
+    job_options = {f"{job.title} - {job.location}" if job.location else job.title: job.id for job in jobs}
+    selected_job_label = st.selectbox("Select Job Position", list(job_options.keys()))
+    selected_job_id = job_options[selected_job_label]
+    
+    # Show selected job details
+    selected_job = next(j for j in jobs if j.id == selected_job_id)
+    with st.expander("View Job Requirements", expanded=False):
+        col_a, col_b = st.columns(2)
+        with col_a:
+            must_skills = json.loads(selected_job.must_skills_json or '[]')
+            st.markdown("**Required Skills:**")
+            for skill in must_skills:
+                st.markdown(f"• {skill}")
+        with col_b:
+            nice_skills = json.loads(selected_job.nice_skills_json or '[]')
+            st.markdown("**Preferred Skills:**")
+            for skill in nice_skills:
+                st.markdown(f"• {skill}")
+        
+        if selected_job.qualifications:
+            st.markdown("**Qualifications:**")
+            st.text(selected_job.qualifications)
+    
+    # Application form
+    st.markdown("### Application Form")
+    with st.form("student_application_form"):
+        # Personal information
+        st.markdown("**Personal Information**")
+        col1, col2 = st.columns(2)
+        with col1:
+            student_name = st.text_input("Full Name *", placeholder="Enter your full name")
+            email = st.text_input("Email Address *", placeholder="your.email@example.com")
+        with col2:
+            phone = st.text_input("Phone Number", placeholder="+1 (555) 123-4567")
+            location = st.text_input("Location", placeholder="City, Country")
+        
+        # Resume upload
+        st.markdown("**Resume Upload**")
+        uploaded_resume = st.file_uploader(
+            "Upload your resume (PDF/DOCX) *",
+            type=["pdf", "docx"],
+            help="Please upload your latest resume for analysis"
+        )
+        
+        # Cover letter
+        st.markdown("**Cover Letter (Optional)**")
+        cover_letter = st.text_area(
+            "Tell us why you're interested in this position",
+            placeholder="Write your cover letter here...",
+            height=120
+        )
+        
+        # Submit button
+        submit_application = st.form_submit_button("Submit Application", type="primary", use_container_width=True)
+        
+        if submit_application:
+            if not all([student_name, email, uploaded_resume]):
+                st.error("Please fill in all required fields (Name, Email, Resume)")
+            else:
+                try:
+                    # Extract text from resume
+                    content = uploaded_resume.read()
+                    resume_text, ext = extract_text(content, uploaded_resume.name)
+                    
+                    # Create application in database
+                    with SessionLocal() as db:
+                        application = crud.create_student_application(
+                            db=db,
+                            job_id=selected_job_id,
+                            student_name=student_name,
+                            email=email,
+                            phone=phone,
+                            location=location,
+                            resume_file_name=uploaded_resume.name,
+                            resume_text=resume_text,
+                            cover_letter=cover_letter
+                        )
+                        
+                        # Perform AI analysis for admin dashboard
+                        try:
+                            # Create temporary resume record for analysis
+                            temp_resume = crud.create_resume(
+                                db=db,
+                                student_name=student_name,
+                                file_name=uploaded_resume.name,
+                                text=resume_text,
+                                location=location
+                            )
+                            
+                            # Run evaluation
+                            evaluation = evaluate_resume_against_job(db, selected_job, temp_resume)
+                            
+                            # Store evaluation ID with application for admin reference
+                            application.evaluation_id = evaluation.id
+                            db.commit()
+                            
+                        except Exception as e:
+                            print(f"Analysis error: {e}")
+                            # Continue even if analysis fails
+                    
+                    st.success("Application submitted successfully!")
+                    
+                    # Show submission confirmation
+                    st.markdown("### Thank You!")
+                    st.info(f"""
+                    **Application ID:** {application.id}
+                    
+                    Your application for **{selected_job.title}** has been submitted successfully!
+                    
+                    Our HR team will review your application and contact you within 3-5 business days.
+                    
+                    You will receive a confirmation email at **{email}**
+                    """)
+                    
+                except Exception as e:
+                    st.error(f"Error submitting application: {str(e)}")
+
 def page_upload_jd():
+    """Admin page for uploading job descriptions"""
+    if not require_auth():
+        st.warning("🔒 Please login to access this page")
+        return
     st.header("Upload Job Description (JD)")
     
     # Option to upload JD file or enter text manually
@@ -621,33 +1120,238 @@ def main():
     st.set_page_config(
         page_title=APP_NAME, 
         layout="wide",
-        page_icon="🎯",
+        page_icon="📄",
         initial_sidebar_state="expanded"
     )
     
-    # Beautiful main header
-    st.markdown(f'<h1 class="main-header">🎯 {APP_NAME}</h1>', unsafe_allow_html=True)
-    st.markdown("""
-    <div style="text-align: center; margin-bottom: 2rem; color: #666;">
-        <p style="font-size: 1.2rem;">AI-Powered Resume Evaluation Engine with Hybrid Scoring</p>
-        <p style="font-size: 1rem;">📄 Upload • 🧠 Analyze • 📊 Score • 🎯 Match</p>
-    </div>
-    """, unsafe_allow_html=True)
+    # Initialize session state
+    if "page" not in st.session_state:
+        st.session_state.page = "landing"
+    
+    # Main navigation logic
+    if not is_authenticated():
+        # Public pages - only landing page for students and login
+        if st.session_state.page != "landing":
+            st.session_state.page = "landing"
+        
+        page_landing()
+    
+    else:
+        # Admin pages - full access after authentication
+        with st.sidebar:
+            st.markdown("### Admin Navigation")
+            
+            # Show logout button
+            show_logout_button()
+            
+            # Admin navigation
+            selected_page = st.radio("Navigate to:", [
+                "Landing Page",
+                "Manage Jobs", 
+                "Review Applications",
+                "Placement Dashboard", 
+                "Analytics Dashboard"
+            ])
+            
+            # Update session state based on selection
+            if "Landing Page" in selected_page:
+                st.session_state.page = "landing"
+            elif "Manage Jobs" in selected_page:
+                st.session_state.page = "upload_jd"
+            elif "Review Applications" in selected_page:
+                st.session_state.page = "admin_dashboard"
+            elif "Placement Dashboard" in selected_page:
+                st.session_state.page = "placement_dashboard"
+            elif "Analytics Dashboard" in selected_page:
+                st.session_state.page = "analytics"
+            
+            st.markdown("---")
+            st.markdown("### Quick Stats")
+            
+            # Quick stats in sidebar
+            try:
+                with SessionLocal() as db:
+                    total_jobs = len(crud.list_jobs(db))
+                    total_applications = len(crud.list_student_applications(db))
+                    pending_applications = len(crud.list_student_applications(db, status="pending"))
+                    
+                    st.metric("Total Jobs", total_jobs)
+                    st.metric("Total Applications", total_applications)
+                    st.metric("Pending Review", pending_applications)
+            except Exception as e:
+                st.error(f"Error loading stats: {e}")
+        
+        # Route to appropriate admin page
+        if st.session_state.page == "landing":
+            page_landing()
+        elif st.session_state.page == "upload_jd":
+            page_upload_jd()
+        elif st.session_state.page == "admin_dashboard":
+            page_admin_dashboard()
+        elif st.session_state.page == "placement_dashboard":
+            page_placement_dashboard()
+        elif st.session_state.page == "analytics":
+            page_dashboard()
 
-    # Enhanced sidebar
-    with st.sidebar:
-        st.markdown("### 🧭 Navigation")
-        page = st.radio("", [
-            "📄 Upload JD", 
-            "📋 Upload Resume", 
-            "📊 Dashboard"
-        ], format_func=lambda x: x.replace("📄 ", "").replace("📋 ", "").replace("📊 ", ""))
-        
-        st.markdown("---")
-        st.markdown("### 📈 Quick Stats")
-        
-        # Quick stats in sidebar
-        db = SessionLocal()
+def page_admin_dashboard():
+    """Admin dashboard for reviewing student applications and their analysis"""
+    st.markdown('<h1 class="main-header">📋 Student Applications Dashboard</h1>', unsafe_allow_html=True)
+    
+    # Get all applications
+    with SessionLocal() as db:
+        applications = crud.list_student_applications(db)
+        jobs = crud.list_jobs(db)
+    
+    if not applications:
+        st.info("📭 No student applications yet.")
+        return
+    
+    # Filter options
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        status_filter = st.selectbox("Filter by Status", ["All", "pending", "reviewed", "accepted", "rejected"])
+    with col2:
+        job_filter = st.selectbox("Filter by Job", ["All"] + [f"{job.title}" for job in jobs])
+    with col3:
+        sort_by = st.selectbox("Sort by", ["Date (Newest)", "Date (Oldest)", "Name"])
+    
+    # Filter applications
+    filtered_apps = applications
+    if status_filter != "All":
+        filtered_apps = [app for app in filtered_apps if app.status == status_filter]
+    if job_filter != "All":
+        filtered_apps = [app for app in filtered_apps if app.job.title == job_filter]
+    
+    # Sort applications
+    if sort_by == "Date (Newest)":
+        filtered_apps.sort(key=lambda x: x.created_at, reverse=True)
+    elif sort_by == "Date (Oldest)":
+        filtered_apps.sort(key=lambda x: x.created_at)
+    else:
+        filtered_apps.sort(key=lambda x: x.student_name)
+    
+    st.markdown(f"### 📊 Showing {len(filtered_apps)} applications")
+    
+    # Display applications
+    for app in filtered_apps:
+        with st.expander(f"👤 {app.student_name} - {app.job.title} | Status: {app.status.upper()}", expanded=False):
+            col1, col2 = st.columns([2, 1])
+            
+            with col1:
+                st.markdown("#### 📝 Application Details")
+                st.write(f"**Email:** {app.email}")
+                st.write(f"**Phone:** {app.phone or 'Not provided'}")
+                st.write(f"**Location:** {app.location or 'Not provided'}")
+                st.write(f"**Applied:** {app.created_at.strftime('%Y-%m-%d %H:%M')}")
+                st.write(f"**Resume File:** {app.resume_file_name}")
+                
+                if app.cover_letter:
+                    st.markdown("**Cover Letter:**")
+                    st.text_area("", value=app.cover_letter, height=100, disabled=True, key=f"cover_{app.id}")
+            
+            with col2:
+                st.markdown("#### ⚙️ Actions")
+                
+                # Status update
+                new_status = st.selectbox(
+                    "Update Status",
+                    ["pending", "reviewed", "accepted", "rejected"],
+                    index=["pending", "reviewed", "accepted", "rejected"].index(app.status),
+                    key=f"status_{app.id}"
+                )
+                
+                if st.button(f"Update Status", key=f"update_{app.id}"):
+                    with SessionLocal() as db:
+                        crud.update_application_status(db, app.id, new_status)
+                    st.success(f"Status updated to {new_status}")
+                    st.rerun()
+            
+            # Resume analysis section
+            st.markdown("#### 🧠 AI Resume Analysis")
+            
+            # Perform resume analysis
+            try:
+                with SessionLocal() as db:
+                    # Create temporary resume for analysis
+                    temp_resume = models.Resume(
+                        student_name=app.student_name,
+                        file_name=app.resume_file_name,
+                        text=app.resume_text,
+                        location=app.location or ""
+                    )
+                    
+                    # Run evaluation
+                    evaluation = evaluate_resume_against_job(db, app.job, temp_resume)
+                    
+                    # Display analysis results
+                    col_a, col_b, col_c = st.columns(3)
+                    with col_a:
+                        score_color = "🟢" if evaluation.score >= 75 else "🟡" if evaluation.score >= 50 else "🔴"
+                        st.metric("Match Score", f"{evaluation.score}%", delta=None)
+                        st.write(f"{score_color} **{evaluation.verdict.upper()}**")
+                    
+                    with col_b:
+                        missing_skills = json.loads(evaluation.missing_json or '[]')
+                        st.metric("Missing Skills", len(missing_skills))
+                    
+                    with col_c:
+                        st.metric("Analysis Date", evaluation.created_at.strftime('%m/%d'))
+                    
+                    # Missing skills
+                    if missing_skills:
+                        st.markdown("**🚫 Missing Skills:**")
+                        for skill in missing_skills[:5]:  # Show top 5
+                            st.write(f"• {skill}")
+                        if len(missing_skills) > 5:
+                            st.write(f"... and {len(missing_skills) - 5} more")
+                    
+                    # LLM Analysis if available
+                    if llm_evaluator.llm:
+                        try:
+                            llm_result = llm_evaluator.evaluate_with_llm(app.resume_text, app.job.jd_text)
+                            
+                            st.markdown("**🤖 AI Detailed Feedback:**")
+                            st.write(llm_result.detailed_feedback)
+                            
+                            if llm_result.strengths:
+                                st.markdown("**💪 Strengths:**")
+                                for strength in llm_result.strengths[:3]:
+                                    st.write(f"• {strength}")
+                            
+                            if llm_result.improvement_suggestions:
+                                st.markdown("**� Improvement Suggestions:**")
+                                for suggestion in llm_result.improvement_suggestions[:3]:
+                                    st.write(f"• {suggestion}")
+                        
+                        except Exception as e:
+                            st.warning(f"LLM analysis unavailable: {e}")
+                    
+                    # Advanced entity extraction
+                    try:
+                        entities = text_processor.extract_entities(app.resume_text)
+                        
+                        col_x, col_y = st.columns(2)
+                        with col_x:
+                            st.markdown("**🎯 Extracted Skills:**")
+                            if entities.skills:
+                                for skill in entities.skills[:10]:
+                                    st.write(f"• {skill}")
+                        
+                        with col_y:
+                            st.markdown("**🏢 Experience:**")
+                            st.write(f"Years: {entities.experience_years}")
+                            if entities.companies:
+                                st.write("Companies:")
+                                for company in entities.companies[:3]:
+                                    st.write(f"• {company}")
+                    
+                    except Exception as e:
+                        st.warning(f"Entity extraction unavailable: {e}")
+            
+            except Exception as e:
+                st.error(f"Analysis error: {e}")
+
+            st.markdown("---")
         try:
             jobs_count = len(crud.list_jobs(db))
             resumes_count = len(crud.list_resumes(db))
@@ -677,21 +1381,217 @@ def main():
         else:
             st.info("💡 Add OpenAI API key for enhanced LLM features")
 
-    pages = {
-        "📄 Upload JD": page_upload_jd,
-        "📋 Upload Resume": page_upload_resume,
-        "📊 Dashboard": page_dashboard,
-    }
+
+def page_placement_dashboard():
+    """Advanced placement team dashboard with search and filtering"""
+    st.markdown('<h1 class="main-header">🎯 Placement Team Dashboard</h1>', unsafe_allow_html=True)
     
-    # Find the selected page
-    selected_page = None
-    for key in pages.keys():
-        if page in key:
-            selected_page = key
-            break
+    # Get all data
+    with SessionLocal() as db:
+        jobs = crud.list_jobs(db)
+        evaluations = crud.list_evaluations(db)
     
-    if selected_page:
-        pages[selected_page]()
+    if not evaluations:
+        st.info("📭 No resume evaluations available yet.")
+        return
+    
+    # Sidebar filters
+    st.sidebar.markdown("### 🔍 Advanced Filters")
+    
+    # Job role filter
+    job_titles = ["All"] + [job.title for job in jobs]
+    selected_job = st.sidebar.selectbox("Job Role", job_titles)
+    
+    # Score range filter
+    min_score, max_score = st.sidebar.slider(
+        "Score Range", 
+        min_value=0.0, 
+        max_value=100.0, 
+        value=(0.0, 100.0),
+        step=5.0
+    )
+    
+    # Verdict filter
+    verdict_options = ["All", "ACCEPT", "MAYBE", "REJECT"]
+    selected_verdict = st.sidebar.selectbox("Verdict", verdict_options)
+    
+    # Location filter
+    st.sidebar.text_input("Location (contains)", key="location_filter")
+    location_filter = st.session_state.get("location_filter", "")
+    
+    # Skills filter
+    st.sidebar.text_input("Required Skills (comma-separated)", key="skills_filter")
+    skills_filter = st.session_state.get("skills_filter", "")
+    
+    # Apply filters
+    filtered_evals = evaluations
+    
+    # Filter by job
+    if selected_job != "All":
+        job_id = next((job.id for job in jobs if job.title == selected_job), None)
+        if job_id:
+            filtered_evals = [e for e in filtered_evals if e.job_id == job_id]
+    
+    # Filter by score range
+    filtered_evals = [e for e in filtered_evals if min_score <= e.score <= max_score]
+    
+    # Filter by verdict
+    if selected_verdict != "All":
+        filtered_evals = [e for e in filtered_evals if e.verdict.upper() == selected_verdict]
+    
+    # Filter by location
+    if location_filter:
+        filtered_evals = [e for e in filtered_evals 
+                         if location_filter.lower() in (e.resume.location or "").lower()]
+    
+    # Filter by skills
+    if skills_filter:
+        skill_list = [s.strip().lower() for s in skills_filter.split(',')]
+        filtered_evals = [e for e in filtered_evals
+                         if any(skill in e.resume.text.lower() for skill in skill_list)]
+    
+    # Sort by score (descending)
+    filtered_evals.sort(key=lambda x: x.score, reverse=True)
+    
+    # Display summary metrics
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        st.metric("Total Candidates", len(filtered_evals))
+    with col2:
+        shortlisted = [e for e in filtered_evals if e.score >= 70]
+        st.metric("Shortlisted (≥70%)", len(shortlisted))
+    with col3:
+        avg_score = sum(e.score for e in filtered_evals) / len(filtered_evals) if filtered_evals else 0
+        st.metric("Average Score", f"{avg_score:.1f}%")
+    with col4:
+        accepted = [e for e in filtered_evals if e.verdict.upper() == "ACCEPT"]
+        st.metric("Recommended", len(accepted))
+    
+    # Quick action buttons
+    st.markdown("### 🚀 Quick Actions")
+    col_a, col_b, col_c = st.columns(3)
+    
+    with col_a:
+        if st.button("🌟 Show Only Shortlisted"):
+            st.session_state["show_shortlisted"] = True
+    
+    with col_b:
+        if st.button("📊 Export to CSV"):
+            # Create DataFrame for export
+            export_data = []
+            for eval in filtered_evals:
+                export_data.append({
+                    "Student Name": eval.resume.student_name,
+                    "Job Title": eval.job.title,
+                    "Score": eval.score,
+                    "Verdict": eval.verdict,
+                    "Location": eval.resume.location or "",
+                    "File Name": eval.resume.file_name,
+                    "Date": eval.created_at.strftime("%Y-%m-%d")
+                })
+            
+            df = pd.DataFrame(export_data)
+            csv = df.to_csv(index=False)
+            st.download_button(
+                label="📥 Download CSV",
+                data=csv,
+                file_name=f"placement_report_{datetime.now().strftime('%Y%m%d')}.csv",
+                mime="text/csv"
+            )
+    
+    with col_c:
+        if st.button("🔄 Reset Filters"):
+            for key in ["location_filter", "skills_filter", "show_shortlisted"]:
+                if key in st.session_state:
+                    del st.session_state[key]
+            st.rerun()
+    
+    # Apply shortlisted filter if set
+    display_evals = filtered_evals
+    if st.session_state.get("show_shortlisted", False):
+        display_evals = [e for e in filtered_evals if e.score >= 70]
+        st.info(f"🌟 Showing only shortlisted candidates (Score ≥ 70%)")
+    
+    # Display results
+    st.markdown(f"### 📋 Candidates ({len(display_evals)} results)")
+    
+    for eval in display_evals:
+        # Color code based on score
+        if eval.score >= 80:
+            header_color = "🟢"
+        elif eval.score >= 60:
+            header_color = "🟡"
+        else:
+            header_color = "🔴"
+        
+        with st.expander(
+            f"{header_color} {eval.resume.student_name} | {eval.job.title} | Score: {eval.score}% | {eval.verdict}",
+            expanded=False
+        ):
+            col1, col2, col3 = st.columns([2, 1, 1])
+            
+            with col1:
+                st.markdown("#### 👤 Candidate Details")
+                st.write(f"**Name:** {eval.resume.student_name}")
+                st.write(f"**Location:** {eval.resume.location or 'Not specified'}")
+                st.write(f"**Resume File:** {eval.resume.file_name}")
+                st.write(f"**Evaluation Date:** {eval.created_at.strftime('%Y-%m-%d %H:%M')}")
+                
+                # Extract and display skills
+                try:
+                    entities = text_processor.extract_entities(eval.resume.text)
+                    if entities.skills:
+                        st.markdown("**🎯 Key Skills:**")
+                        skills_display = ", ".join(entities.skills[:8])
+                        st.write(skills_display)
+                        if len(entities.skills) > 8:
+                            st.caption(f"... and {len(entities.skills) - 8} more skills")
+                except:
+                    pass
+            
+            with col2:
+                st.markdown("#### 📊 Evaluation")
+                score_color = "success" if eval.score >= 70 else "warning" if eval.score >= 50 else "error"
+                st.metric("Match Score", f"{eval.score}%")
+                st.write(f"**Verdict:** {eval.verdict}")
+                
+                # Missing skills
+                try:
+                    missing_skills = json.loads(eval.missing_json or '[]')
+                    if missing_skills:
+                        st.metric("Missing Skills", len(missing_skills))
+                        with st.expander("View Missing Skills"):
+                            for skill in missing_skills:
+                                st.write(f"• {skill}")
+                except:
+                    pass
+            
+            with col3:
+                st.markdown("#### 🏢 Job Match")
+                st.write(f"**Position:** {eval.job.title}")
+                st.write(f"**Location:** {eval.job.location or 'Any'}")
+                
+                # Job description preview
+                if st.button(f"View JD", key=f"jd_{eval.id}"):
+                    st.text_area(
+                        "Job Description",
+                        value=eval.job.jd_text[:300] + "...",
+                        height=100,
+                        disabled=True,
+                        key=f"jd_text_{eval.id}"
+                    )
+            
+            # Suggestions and feedback
+            if eval.suggestions:
+                st.markdown("#### 💡 Improvement Suggestions")
+                st.info(eval.suggestions)
+            
+            # Resume preview
+            with st.expander("📄 Resume Preview"):
+                resume_preview = eval.resume.text[:500] + "..." if len(eval.resume.text) > 500 else eval.resume.text
+                st.text_area("", value=resume_preview, height=150, disabled=True, key=f"resume_{eval.id}")
+
+            st.markdown("---")
 
 
 if __name__ == "__main__":

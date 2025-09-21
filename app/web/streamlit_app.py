@@ -1287,12 +1287,34 @@ def page_admin_dashboard():
     """Admin dashboard for reviewing student applications and their analysis"""
     st.markdown('<h1 class="main-header">📋 Student Applications Dashboard</h1>', unsafe_allow_html=True)
     
-    # Get all applications
+    # Get all applications with job data
     with SessionLocal() as db:
         applications = crud.list_student_applications(db)
         jobs = crud.list_jobs(db)
+        
+        # Create job lookup for filtering
+        job_dict = {job.id: job.title for job in jobs}
+        
+        # Convert to data that doesn't require DB session
+        app_data = []
+        for app in applications:
+            app_info = {
+                'id': app.id,
+                'student_name': app.student_name,
+                'email': app.email,
+                'phone': app.phone or 'Not provided',
+                'location': app.location or 'Not provided',
+                'status': app.status,
+                'job_id': app.job_id,
+                'job_title': job_dict.get(app.job_id, 'Unknown'),
+                'resume_file_name': app.resume_file_name,
+                'resume_text': app.resume_text,
+                'cover_letter': app.cover_letter,
+                'created_at': app.created_at
+            }
+            app_data.append(app_info)
     
-    if not applications:
+    if not app_data:
         st.info("📭 No student applications yet.")
         return
     
@@ -1301,43 +1323,44 @@ def page_admin_dashboard():
     with col1:
         status_filter = st.selectbox("Filter by Status", ["All", "pending", "reviewed", "accepted", "rejected"])
     with col2:
-        job_filter = st.selectbox("Filter by Job", ["All"] + [f"{job.title}" for job in jobs])
+        job_titles = ["All"] + list(set(app['job_title'] for app in app_data))
+        job_filter = st.selectbox("Filter by Job", job_titles)
     with col3:
         sort_by = st.selectbox("Sort by", ["Date (Newest)", "Date (Oldest)", "Name"])
     
     # Filter applications
-    filtered_apps = applications
+    filtered_apps = app_data
     if status_filter != "All":
-        filtered_apps = [app for app in filtered_apps if app.status == status_filter]
+        filtered_apps = [app for app in filtered_apps if app['status'] == status_filter]
     if job_filter != "All":
-        filtered_apps = [app for app in filtered_apps if app.job.title == job_filter]
+        filtered_apps = [app for app in filtered_apps if app['job_title'] == job_filter]
     
     # Sort applications
     if sort_by == "Date (Newest)":
-        filtered_apps.sort(key=lambda x: x.created_at, reverse=True)
+        filtered_apps.sort(key=lambda x: x['created_at'], reverse=True)
     elif sort_by == "Date (Oldest)":
-        filtered_apps.sort(key=lambda x: x.created_at)
+        filtered_apps.sort(key=lambda x: x['created_at'])
     else:
-        filtered_apps.sort(key=lambda x: x.student_name)
+        filtered_apps.sort(key=lambda x: x['student_name'])
     
     st.markdown(f"### 📊 Showing {len(filtered_apps)} applications")
     
     # Display applications
     for app in filtered_apps:
-        with st.expander(f"👤 {app.student_name} - {app.job.title} | Status: {app.status.upper()}", expanded=False):
+        with st.expander(f"👤 {app['student_name']} - {app['job_title']} | Status: {app['status'].upper()}", expanded=False):
             col1, col2 = st.columns([2, 1])
             
             with col1:
                 st.markdown("#### 📝 Application Details")
-                st.write(f"**Email:** {app.email}")
-                st.write(f"**Phone:** {app.phone or 'Not provided'}")
-                st.write(f"**Location:** {app.location or 'Not provided'}")
-                st.write(f"**Applied:** {app.created_at.strftime('%Y-%m-%d %H:%M')}")
-                st.write(f"**Resume File:** {app.resume_file_name}")
+                st.write(f"**Email:** {app['email']}")
+                st.write(f"**Phone:** {app['phone']}")
+                st.write(f"**Location:** {app['location']}")
+                st.write(f"**Applied:** {app['created_at'].strftime('%Y-%m-%d %H:%M')}")
+                st.write(f"**Resume File:** {app['resume_file_name']}")
                 
-                if app.cover_letter:
+                if app['cover_letter']:
                     st.markdown("**Cover Letter:**")
-                    st.text_area("", value=app.cover_letter, height=100, disabled=True, key=f"cover_{app.id}")
+                    st.text_area("", value=app['cover_letter'], height=100, disabled=True, key=f"cover_{app['id']}")
             
             with col2:
                 st.markdown("#### ⚙️ Actions")
@@ -1346,13 +1369,13 @@ def page_admin_dashboard():
                 new_status = st.selectbox(
                     "Update Status",
                     ["pending", "reviewed", "accepted", "rejected"],
-                    index=["pending", "reviewed", "accepted", "rejected"].index(app.status),
-                    key=f"status_{app.id}"
+                    index=["pending", "reviewed", "accepted", "rejected"].index(app['status']),
+                    key=f"status_{app['id']}"
                 )
                 
-                if st.button(f"Update Status", key=f"update_{app.id}"):
+                if st.button(f"Update Status", key=f"update_{app['id']}"):
                     with SessionLocal() as db:
-                        crud.update_application_status(db, app.id, new_status)
+                        crud.update_application_status(db, app['id'], new_status)
                     st.success(f"Status updated to {new_status}")
                     st.rerun()
             
@@ -1362,114 +1385,93 @@ def page_admin_dashboard():
             # Perform resume analysis
             try:
                 with SessionLocal() as db:
-                    # Create temporary resume for analysis
-                    temp_resume = models.Resume(
-                        student_name=app.student_name,
-                        file_name=app.resume_file_name,
-                        text=app.resume_text,
-                        location=app.location or ""
-                    )
-                    
-                    # Run evaluation
-                    evaluation = evaluate_resume_against_job(db, app.job, temp_resume)
-                    
-                    # Display analysis results
-                    col_a, col_b, col_c = st.columns(3)
-                    with col_a:
-                        score_color = "🟢" if evaluation.score >= 75 else "🟡" if evaluation.score >= 50 else "🔴"
-                        st.metric("Match Score", f"{evaluation.score}%", delta=None)
-                        st.write(f"{score_color} **{evaluation.verdict.upper()}**")
-                    
-                    with col_b:
-                        missing_skills = json.loads(evaluation.missing_json or '[]')
-                        st.metric("Missing Skills", len(missing_skills))
-                    
-                    with col_c:
-                        st.metric("Analysis Date", evaluation.created_at.strftime('%m/%d'))
-                    
-                    # Missing skills
-                    if missing_skills:
-                        st.markdown("**🚫 Missing Skills:**")
-                        for skill in missing_skills[:5]:  # Show top 5
-                            st.write(f"• {skill}")
-                        if len(missing_skills) > 5:
-                            st.write(f"... and {len(missing_skills) - 5} more")
-                    
-                    # LLM Analysis if available
-                    if llm_evaluator.llm:
+                    # Get the job for analysis
+                    job = crud.get_job(db, app['job_id'])
+                    if job:
+                        # Create temporary resume for analysis
+                        temp_resume = models.Resume(
+                            student_name=app['student_name'],
+                            file_name=app['resume_file_name'],
+                            text=app['resume_text'],
+                            location=app['location'] if app['location'] != 'Not provided' else ""
+                        )
+                        
+                        # Run evaluation
+                        evaluation = evaluate_resume_against_job(db, job, temp_resume)
+                        
+                        # Display analysis results
+                        col_a, col_b, col_c = st.columns(3)
+                        with col_a:
+                            score_color = "🟢" if evaluation.score >= 75 else "🟡" if evaluation.score >= 50 else "🔴"
+                            st.metric("Match Score", f"{evaluation.score}%", delta=None)
+                            st.write(f"{score_color} **{evaluation.verdict.upper()}**")
+                        
+                        with col_b:
+                            missing_skills = json.loads(evaluation.missing_json or '[]')
+                            st.metric("Missing Skills", len(missing_skills))
+                        
+                        with col_c:
+                            st.metric("Analysis Date", evaluation.created_at.strftime('%m/%d'))
+                        
+                        # Missing skills
+                        if missing_skills:
+                            st.markdown("**🚫 Missing Skills:**")
+                            for skill in missing_skills[:5]:  # Show top 5
+                                st.write(f"• {skill}")
+                            if len(missing_skills) > 5:
+                                st.write(f"... and {len(missing_skills) - 5} more")
+                        
+                        # LLM Analysis if available
+                        if llm_evaluator.llm:
+                            try:
+                                llm_result = llm_evaluator.evaluate_with_llm(app['resume_text'], job.jd_text)
+                                
+                                st.markdown("**🤖 AI Detailed Feedback:**")
+                                st.write(llm_result.detailed_feedback)
+                                
+                                if llm_result.strengths:
+                                    st.markdown("**💪 Strengths:**")
+                                    for strength in llm_result.strengths[:3]:
+                                        st.write(f"• {strength}")
+                                
+                                if llm_result.improvement_suggestions:
+                                    st.markdown("**💡 Improvement Suggestions:**")
+                                    for suggestion in llm_result.improvement_suggestions[:3]:
+                                        st.write(f"• {suggestion}")
+                            
+                            except Exception as e:
+                                st.warning(f"LLM analysis unavailable: {e}")
+                        
+                        # Advanced entity extraction
                         try:
-                            llm_result = llm_evaluator.evaluate_with_llm(app.resume_text, app.job.jd_text)
+                            entities = text_processor.extract_entities(app['resume_text'])
                             
-                            st.markdown("**🤖 AI Detailed Feedback:**")
-                            st.write(llm_result.detailed_feedback)
+                            col_x, col_y = st.columns(2)
+                            with col_x:
+                                st.markdown("**🎯 Extracted Skills:**")
+                                if entities.skills:
+                                    for skill in entities.skills[:10]:
+                                        st.write(f"• {skill}")
                             
-                            if llm_result.strengths:
-                                st.markdown("**💪 Strengths:**")
-                                for strength in llm_result.strengths[:3]:
-                                    st.write(f"• {strength}")
-                            
-                            if llm_result.improvement_suggestions:
-                                st.markdown("**� Improvement Suggestions:**")
-                                for suggestion in llm_result.improvement_suggestions[:3]:
-                                    st.write(f"• {suggestion}")
+                            with col_y:
+                                st.markdown("**🏢 Experience:**")
+                                if entities.experience_years:
+                                    max_exp = max(entities.experience_years) if entities.experience_years else 0
+                                    st.write(f"Years: {max_exp}")
+                                if entities.companies:
+                                    st.write("Companies:")
+                                    for company in entities.companies[:3]:
+                                        st.write(f"• {company}")
                         
                         except Exception as e:
-                            st.warning(f"LLM analysis unavailable: {e}")
-                    
-                    # Advanced entity extraction
-                    try:
-                        entities = text_processor.extract_entities(app.resume_text)
-                        
-                        col_x, col_y = st.columns(2)
-                        with col_x:
-                            st.markdown("**🎯 Extracted Skills:**")
-                            if entities.skills:
-                                for skill in entities.skills[:10]:
-                                    st.write(f"• {skill}")
-                        
-                        with col_y:
-                            st.markdown("**🏢 Experience:**")
-                            st.write(f"Years: {entities.experience_years}")
-                            if entities.companies:
-                                st.write("Companies:")
-                                for company in entities.companies[:3]:
-                                    st.write(f"• {company}")
-                    
-                    except Exception as e:
-                        st.warning(f"Entity extraction unavailable: {e}")
+                            st.warning(f"Entity extraction unavailable: {e}")
+                    else:
+                        st.warning("Job not found for this application")
             
             except Exception as e:
                 st.error(f"Analysis error: {e}")
 
             st.markdown("---")
-        try:
-            jobs_count = len(crud.list_jobs(db))
-            resumes_count = len(crud.list_resumes(db))
-            evals = crud.list_evaluations(db)
-            avg_score = sum(e.score for e in evals) / len(evals) if evals else 0
-            
-            st.metric("Job Descriptions", jobs_count)
-            st.metric("Resumes Evaluated", resumes_count) 
-            st.metric("Average Score", f"{avg_score:.1f}")
-        finally:
-            db.close()
-        
-        st.markdown("---")
-        st.markdown("### ⚙️ AI System Status")
-        
-        # Check system capabilities
-        llm_status = "🟢 Active" if llm_evaluator.llm else "🟡 Fallback"
-        vector_status = "🟢 Active" if llm_evaluator.collection else "🔴 Offline"
-        
-        st.caption(f"� LLM Engine: {llm_status}")
-        st.caption(f"🔍 Vector Search: {vector_status}")
-        st.caption("� Hybrid Scoring: 🟢 Active")
-        st.caption("🎯 Entity Extraction: � Active")
-        
-        if llm_evaluator.llm:
-            st.success("✨ Full AI capabilities enabled!")
-        else:
-            st.info("💡 Add OpenAI API key for enhanced LLM features")
 
 
 def page_placement_dashboard():

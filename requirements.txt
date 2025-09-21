@@ -1,40 +1,47 @@
-streamlit
-pdfplumber
-docx2txt
-rapidfuzz
-scikit-learn
-numpy
-pandas
-SQLAlchemy
-sentence-transformers
-plotly
+# Core Streamlit and Web Framework
+streamlit==1.28.0
+plotly==5.17.0
 
-# Advanced LLM and AI Framework
-langchain
-langchain-community
-langchain-openai
-langchain-google-genai
-langchain-anthropic
-langgraph
-langsmith
+# Document Processing
+pdfplumber==0.9.0
+docx2txt==0.8
 
-# Vector Stores
-chromadb
-faiss-cpu
+# Text Analysis and ML
+scikit-learn==1.3.0
+numpy==1.24.3
+pandas==2.0.3
+sentence-transformers==2.2.2
+rapidfuzz==3.2.0
 
-# Enhanced Text Processing
-spacy
-nltk
+# Database
+SQLAlchemy==2.0.20
 
-# API Framework
-fastapi
-uvicorn
-pydantic
+# Advanced LLM and AI Framework (Optional - will fallback gracefully)
+langchain==0.0.300
+langchain-community==0.0.25
+langchain-openai==0.0.8
+langchain-google-genai==0.0.6
+langchain-anthropic==0.0.4
+langgraph==0.0.40
 
-# Additional ML/AI
-openai
-google-generativeai
-anthropic
+# Vector Stores (Optional)
+chromadb==0.4.10
+faiss-cpu==1.7.4
+
+# Enhanced Text Processing (Optional)
+spacy==3.7.0
+nltk==3.8.1
+
+# API Framework (for future enhancements)
+fastapi==0.104.1
+uvicorn==0.24.0
+pydantic==2.4.2
+python-multipart==0.0.6
+
+# Additional LLM APIs (Optional)
+openai==1.3.0
+google-generativeai==0.3.0
+anthropic==0.7.0
 
 # Enhanced fuzzy matching
-python-Levenshtein
+python-Levenshtein==0.21.1

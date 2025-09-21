@@ -86,15 +86,18 @@ st.markdown("""
         font-family: 'Inter', sans-serif;
     }
     
-    /* Dark card sections */
+    /* Sleek admin login card */
     .admin-login-section {
-        background: rgba(45, 45, 65, 0.8);
-        padding: 2rem;
-        border-radius: 12px;
-        border: 1px solid rgba(102, 126, 234, 0.3);
-        box-shadow: 0 8px 25px rgba(0,0,0,0.2);
+        background: rgba(45, 45, 65, 0.9);
+        padding: 1.5rem;
+        border-radius: 10px;
+        border: 1px solid rgba(102, 126, 234, 0.4);
+        box-shadow: 0 6px 20px rgba(0,0,0,0.25);
         margin: 1rem 0;
-        backdrop-filter: blur(10px);
+        backdrop-filter: blur(15px);
+        max-width: 400px;
+        margin-left: auto;
+        margin-right: auto;
     }
     
     .student-form-section {
@@ -179,9 +182,10 @@ st.markdown("""
         box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4) !important;
     }
     
-    /* Dark sidebar with gradient */
+    /* Sleek dark sidebar */
     .css-1d391kg {
         background: linear-gradient(180deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%) !important;
+        border-right: 1px solid rgba(102, 126, 234, 0.2) !important;
     }
     
     .css-1d391kg .css-1v0mbdj {
@@ -382,7 +386,7 @@ st.markdown("""
         background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
     }
     
-    /* Sidebar text white */
+    /* Sleek sidebar navigation */
     .css-1d391kg .element-container {
         color: white !important;
     }
@@ -390,10 +394,34 @@ st.markdown("""
     .css-1d391kg .stRadio > label {
         color: white !important;
         font-weight: 500 !important;
+        font-size: 0.9rem !important;
+        padding: 0.5rem 0 !important;
+    }
+    
+    .css-1d391kg .stRadio > div > div {
+        background: rgba(60, 60, 80, 0.3) !important;
+        border-radius: 8px !important;
+        padding: 0.5rem !important;
+        margin: 0.2rem 0 !important;
+        transition: all 0.3s ease !important;
+    }
+    
+    .css-1d391kg .stRadio > div > div:hover {
+        background: rgba(102, 126, 234, 0.2) !important;
+        transform: translateX(5px) !important;
     }
     
     .css-1d391kg .stMarkdown {
         color: white !important;
+    }
+    
+    .css-1d391kg .stMarkdown h3 {
+        color: white !important;
+        font-size: 1.1rem !important;
+        font-weight: 600 !important;
+        margin-bottom: 1rem !important;
+        padding-bottom: 0.5rem !important;
+        border-bottom: 2px solid rgba(102, 126, 234, 0.3) !important;
     }
     
     /* Ensure all text is white in main content */
@@ -442,6 +470,40 @@ st.markdown("""
     .stCheckbox > label {
         color: white !important;
     }
+    
+    /* Sleek top navigation buttons */
+    .stButton > button[kind="secondary"] {
+        background: rgba(60, 60, 80, 0.6) !important;
+        color: #667eea !important;
+        border: 1px solid rgba(102, 126, 234, 0.4) !important;
+        box-shadow: 0 2px 8px rgba(0,0,0,0.2) !important;
+        font-size: 0.9rem !important;
+        padding: 0.5rem 1rem !important;
+    }
+    
+    .stButton > button[kind="secondary"]:hover {
+        background: rgba(102, 126, 234, 0.2) !important;
+        color: white !important;
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.3) !important;
+        transform: translateY(-1px) !important;
+    }
+    
+    /* Compact login form styling */
+    .admin-login-section .stButton > button {
+        font-size: 0.9rem !important;
+        padding: 0.6rem 1.2rem !important;
+    }
+    
+    .admin-login-section .stTextInput > div > div > input {
+        padding: 0.6rem !important;
+        font-size: 0.9rem !important;
+    }
+    
+    .admin-login-section .section-header {
+        font-size: 1.2rem !important;
+        margin: 0 0 1rem 0 !important;
+        text-align: center !important;
+    }
 </style>
 """, unsafe_allow_html=True)
 
@@ -450,34 +512,47 @@ def page_landing():
     st.markdown('<h1 class="main-header">AI Resume Evaluation System</h1>', unsafe_allow_html=True)
     st.markdown('<p class="sub-header">Smart Resume Analysis & Job Matching Platform</p>', unsafe_allow_html=True)
     
-    # Top admin access bar
-    col_admin1, col_admin2 = st.columns([3, 1])
-    with col_admin2:
-        if not is_authenticated():
-            if st.button("Admin Login", type="secondary", use_container_width=True):
-                st.session_state.show_admin_login = True
-        else:
-            if st.button("Go to Admin Dashboard", type="primary", use_container_width=True):
+    # Sleek top navigation bar
+    col_nav1, col_nav2, col_nav3 = st.columns([2, 1, 1])
+    
+    with col_nav2:
+        if st.button("Admin", type="secondary", use_container_width=True):
+            if is_authenticated():
                 st.session_state.page = "admin_dashboard"
                 st.rerun()
-    
-    # Show admin login form if requested
-    if st.session_state.get('show_admin_login', False) and not is_authenticated():
-        st.markdown('<div class="admin-login-section">', unsafe_allow_html=True)
-        st.markdown('<h3 class="section-header">Administrator Login</h3>', unsafe_allow_html=True)
-        
-        login_result = show_login_form()
-        if login_result:
-            st.session_state.show_admin_login = False
-            st.session_state.page = "admin_dashboard"
-            st.rerun()
-        
-        col_cancel1, col_cancel2 = st.columns([1, 1])
-        with col_cancel2:
-            if st.button("Cancel", type="secondary"):
-                st.session_state.show_admin_login = False
+            else:
+                st.session_state.show_admin_login = True
                 st.rerun()
-        st.markdown('</div>', unsafe_allow_html=True)
+    
+    with col_nav3:
+        if st.button("Dashboard", type="secondary", use_container_width=True):
+            if is_authenticated():
+                st.session_state.page = "analytics"
+                st.rerun()
+            else:
+                st.session_state.show_admin_login = True
+                st.rerun()
+    
+    # Compact admin login form if requested
+    if st.session_state.get('show_admin_login', False) and not is_authenticated():
+        col1, col2, col3 = st.columns([1, 2, 1])
+        with col2:
+            st.markdown('<div class="admin-login-section">', unsafe_allow_html=True)
+            st.markdown('<h3 class="section-header">Admin Login</h3>', unsafe_allow_html=True)
+            
+            login_result = show_login_form()
+            if login_result:
+                st.session_state.show_admin_login = False
+                st.session_state.page = "admin_dashboard"
+                st.rerun()
+            
+            col_cancel1, col_cancel2 = st.columns([1, 1])
+            with col_cancel1:
+                if st.button("Cancel", type="secondary", use_container_width=True):
+                    st.session_state.show_admin_login = False
+                    st.rerun()
+            st.markdown('</div>', unsafe_allow_html=True)
+        
         st.markdown("---")
     
     # Main student application section
@@ -1131,7 +1206,7 @@ def main():
     # Main navigation logic
     if not is_authenticated():
         # Public pages - only landing page for students and login
-        if st.session_state.page != "landing":
+        if st.session_state.page not in ["landing"]:
             st.session_state.page = "landing"
         
         page_landing()
@@ -1139,19 +1214,43 @@ def main():
     else:
         # Admin pages - full access after authentication
         with st.sidebar:
-            st.markdown("### Admin Navigation")
+            st.markdown("### 🎯 Admin Navigation")
             
             # Show logout button
             show_logout_button()
             
             # Admin navigation
-            selected_page = st.radio("Navigate to:", [
-                "Landing Page",
-                "Manage Jobs", 
-                "Review Applications",
-                "Placement Dashboard", 
-                "Analytics Dashboard"
-            ])
+            nav_options = [
+                "🏠 Landing Page",
+                "📄 Manage Jobs", 
+                "📋 Review Applications",
+                "🎯 Placement Dashboard", 
+                "📊 Analytics Dashboard"
+            ]
+            
+            # Map current page to radio selection
+            page_mapping = {
+                "landing": "🏠 Landing Page",
+                "upload_jd": "📄 Manage Jobs",
+                "admin_dashboard": "📋 Review Applications",
+                "placement_dashboard": "🎯 Placement Dashboard",
+                "analytics": "📊 Analytics Dashboard"
+            }
+            
+            # Get current index
+            current_page = st.session_state.get("page", "landing")
+            current_selection = page_mapping.get(current_page, "🏠 Landing Page")
+            
+            try:
+                default_index = nav_options.index(current_selection)
+            except ValueError:
+                default_index = 0
+            
+            selected_page = st.radio(
+                "Navigate to:", 
+                nav_options,
+                index=default_index
+            )
             
             # Update session state based on selection
             if "Landing Page" in selected_page:
@@ -1166,7 +1265,7 @@ def main():
                 st.session_state.page = "analytics"
             
             st.markdown("---")
-            st.markdown("### Quick Stats")
+            st.markdown("### 📊 Quick Stats")
             
             # Quick stats in sidebar
             try:
@@ -1175,13 +1274,13 @@ def main():
                     total_applications = len(crud.list_student_applications(db))
                     pending_applications = len(crud.list_student_applications(db, status="pending"))
                     
-                    st.metric("Total Jobs", total_jobs)
-                    st.metric("Total Applications", total_applications)
-                    st.metric("Pending Review", pending_applications)
+                    st.metric("📄 Total Jobs", total_jobs)
+                    st.metric("📋 Applications", total_applications)
+                    st.metric("⏳ Pending", pending_applications)
             except Exception as e:
                 st.error(f"Error loading stats: {e}")
         
-        # Route to appropriate admin page
+        # Route to appropriate admin page based on session state
         if st.session_state.page == "landing":
             page_landing()
         elif st.session_state.page == "upload_jd":
@@ -1192,6 +1291,10 @@ def main():
             page_placement_dashboard()
         elif st.session_state.page == "analytics":
             page_dashboard()
+        else:
+            # Default fallback
+            st.session_state.page = "landing"
+            page_landing()
 
 def page_admin_dashboard():
     """Admin dashboard for reviewing student applications and their analysis"""

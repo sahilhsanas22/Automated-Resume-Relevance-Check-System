@@ -2,6 +2,7 @@
 Advanced LLM-powered evaluation service using LangChain and LangGraph
 """
 import os
+import sys
 from typing import List, Dict, Any, Optional
 from dataclasses import dataclass
 from langchain.schema import Document
@@ -9,9 +10,18 @@ from langchain.text_splitter import RecursiveCharacterTextSplitter
 from langchain.prompts import ChatPromptTemplate
 from langchain.schema.runnable import RunnablePassthrough
 from langchain.schema.output_parser import StrOutputParser
-import chromadb
-from chromadb.utils import embedding_functions
 import json
+
+# Handle ChromaDB import with SQLite fix
+try:
+    __import__('pysqlite3')
+    sys.modules['sqlite3'] = sys.modules.pop('pysqlite3')
+    import chromadb
+    from chromadb.utils import embedding_functions
+    CHROMADB_AVAILABLE = True
+except (ImportError, RuntimeError) as e:
+    print(f"ChromaDB not available: {e}")
+    CHROMADB_AVAILABLE = False
 
 try:
     from langchain_openai import ChatOpenAI, OpenAIEmbeddings
@@ -67,8 +77,13 @@ class AdvancedLLMEvaluator:
             self.embeddings = None
     
     def _initialize_vector_store(self):
-        """Initialize Chroma vector store"""
+        """Initialize Chroma vector store if available"""
         try:
+            if not CHROMADB_AVAILABLE:
+                print("ChromaDB not available, skipping vector store initialization")
+                self.collection = None
+                return
+                
             # Use sentence-transformers embeddings as fallback
             embedding_fn = embedding_functions.SentenceTransformerEmbeddingFunction(
                 model_name="sentence-transformers/all-MiniLM-L6-v2"
@@ -86,7 +101,7 @@ class AdvancedLLMEvaluator:
             self.collection = None
     
     def add_to_vector_store(self, text: str, metadata: Dict[str, Any], doc_id: str):
-        """Add document to vector store"""
+        """Add document to vector store if available"""
         if self.collection:
             try:
                 self.collection.add(
@@ -96,30 +111,35 @@ class AdvancedLLMEvaluator:
                 )
             except Exception as e:
                 print(f"Failed to add to vector store: {e}")
+        else:
+            print("Vector store not available, skipping document addition")
     
     def semantic_search(self, query: str, n_results: int = 5) -> List[Dict]:
-        """Perform semantic search in vector store"""
-        if self.collection:
-            try:
-                results = self.collection.query(
-                    query_texts=[query],
-                    n_results=n_results
+        """Perform semantic search in vector store if available"""
+        if not self.collection:
+            print("Vector store not available, returning empty results")
+            return []
+            
+        try:
+            results = self.collection.query(
+                query_texts=[query],
+                n_results=n_results
+            )
+            return [
+                {
+                    "document": doc,
+                    "metadata": meta,
+                    "distance": dist
+                }
+                for doc, meta, dist in zip(
+                    results["documents"][0],
+                    results["metadatas"][0],
+                    results["distances"][0]
                 )
-                return [
-                    {
-                        "document": doc,
-                        "metadata": meta,
-                        "distance": dist
-                    }
-                    for doc, meta, dist in zip(
-                        results["documents"][0],
-                        results["metadatas"][0],
-                        results["distances"][0]
-                    )
-                ]
-            except Exception as e:
-                print(f"Semantic search failed: {e}")
-        return []
+            ]
+        except Exception as e:
+            print(f"Semantic search failed: {e}")
+            return []
     
     def evaluate_with_llm(self, resume_text: str, jd_text: str) -> LLMEvaluationResult:
         """

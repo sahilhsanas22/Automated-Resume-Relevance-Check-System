@@ -18,6 +18,10 @@ def evaluate_resume_against_job(db: Session, job: models.Job, resume: models.Res
     """
     Enhanced evaluation with LLM integration and advanced text processing
     """
+    # Validate that resume has been saved to database
+    if not resume.id:
+        raise ValueError("Resume must be saved to database before evaluation. Use crud.create_resume() to save it first.")
+    
     must = loads_json(job.must_skills_json) or []
     nice = loads_json(job.nice_skills_json) or []
 

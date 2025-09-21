@@ -1389,7 +1389,8 @@ def page_admin_dashboard():
                     job = crud.get_job(db, app['job_id'])
                     if job:
                         # Create temporary resume for analysis
-                        temp_resume = models.Resume(
+                        temp_resume = crud.create_resume(
+                            db=db,
                             student_name=app['student_name'],
                             file_name=app['resume_file_name'],
                             text=app['resume_text'],

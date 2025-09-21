@@ -51,6 +51,12 @@ def list_resumes(db: Session) -> List[models.Resume]:
 # Evaluations
 
 def create_evaluation(db: Session, *, job_id: int, resume_id: int, score: float, verdict: str, missing: List[str], suggestions: str = "") -> models.Evaluation:
+    # Validate required fields
+    if not job_id:
+        raise ValueError("job_id is required for evaluation")
+    if not resume_id:
+        raise ValueError("resume_id is required for evaluation")
+    
     ev = models.Evaluation(
         job_id=job_id,
         resume_id=resume_id,

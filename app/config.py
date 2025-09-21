@@ -16,3 +16,8 @@ USE_EMBEDDINGS = True  # set False to always fallback to TF-IDF
 
 # Misc
 APP_NAME = "AI Resume Evaluation Engine"
+
+# Admin auth (read from environment; set in deployment)
+import os
+ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "admin")
+ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "admin")

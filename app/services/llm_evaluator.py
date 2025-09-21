@@ -85,9 +85,16 @@ class AdvancedLLMEvaluator:
                 return
                 
             # Use sentence-transformers embeddings as fallback
-            embedding_fn = embedding_functions.SentenceTransformerEmbeddingFunction(
-                model_name="sentence-transformers/all-MiniLM-L6-v2"
-            )
+            try:
+                embedding_fn = embedding_functions.SentenceTransformerEmbeddingFunction(
+                    model_name="sentence-transformers/all-MiniLM-L6-v2"
+                )
+            except Exception as e:
+                print(f"Failed to initialize embedding function: {e}")
+                if "429" in str(e) or "rate limit" in str(e).lower():
+                    print("HuggingFace rate limiting detected - ChromaDB will use default embeddings")
+                # Fall back to default embeddings
+                embedding_fn = embedding_functions.DefaultEmbeddingFunction()
             
             client = chromadb.PersistentClient(path="./data/chroma_db")
             

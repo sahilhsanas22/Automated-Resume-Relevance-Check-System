@@ -8,21 +8,26 @@ from app.config import EMBEDDINGS_MODEL, USE_EMBEDDINGS
 try:
     from sentence_transformers import SentenceTransformer
     _st_model: Optional[SentenceTransformer] = None
+    SENTENCE_TRANSFORMERS_AVAILABLE = True
 except Exception:
     SentenceTransformer = None
     _st_model = None
+    SENTENCE_TRANSFORMERS_AVAILABLE = False
 
 
-def _get_st_model() -> Optional["SentenceTransformer"]:
+def _get_st_model() -> Optional[object]:
     global _st_model
     if not USE_EMBEDDINGS:
         return None
-    if SentenceTransformer is None:
+    if not SENTENCE_TRANSFORMERS_AVAILABLE:
         return None
     if _st_model is None:
         try:
             _st_model = SentenceTransformer(EMBEDDINGS_MODEL)
-        except Exception:
+        except Exception as e:
+            print(f"Failed to load SentenceTransformer model: {e}")
+            if "429" in str(e) or "rate limit" in str(e).lower():
+                print("Rate limiting detected - model loading will be retried later")
             _st_model = None
     return _st_model
 

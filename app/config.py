@@ -1,4 +1,10 @@
+import os
+
 DB_PATH = "data/app.db"
+
+# Deployment configuration
+DEPLOYMENT_MODE = os.getenv("DEPLOYMENT_MODE", "local")  # "local" or "cloud"
+IS_CLOUD_DEPLOYMENT = DEPLOYMENT_MODE == "cloud"
 
 # Scoring weights
 HARD_MATCH_WEIGHT = 0.6
@@ -12,12 +18,11 @@ VERDICT_THRESHOLDS = {
 
 # Embeddings configuration
 EMBEDDINGS_MODEL = "sentence-transformers/all-MiniLM-L6-v2"  # used if available
-USE_EMBEDDINGS = True  # set False to always fallback to TF-IDF
+USE_EMBEDDINGS = True and not IS_CLOUD_DEPLOYMENT  # Disable embeddings on cloud to avoid rate limiting
 
 # Misc
 APP_NAME = "AI Resume Evaluation Engine"
 
 # Admin auth (read from environment; set in deployment)
-import os
 ADMIN_USERNAME = os.getenv("ADMIN_USERNAME", "admin")
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "admin123")
